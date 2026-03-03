@@ -23,6 +23,7 @@
       place-items:center;
     }
     canvas{ width:100%; height:100%; display:block; }
+
     .hint{
       position:absolute;
       inset:auto 0 8%;
@@ -32,36 +33,133 @@
       letter-spacing:.2px;
       transition: opacity .4s ease;
     }
+
     .love{
       position:absolute;
       text-align:center;
-      font-weight:800;
-      font-size:clamp(28px, 6vw, 44px);
+      font-weight:900;
+      font-size:clamp(26px, 5.8vw, 42px);
       opacity:0;
       transform: scale(.98);
       transition: opacity .6s ease, transform .6s ease;
       text-shadow: 0 12px 40px rgba(0,0,0,.35);
       pointer-events:none;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:.35em;
+      padding: 0 10px;
+      white-space: nowrap;
     }
-    .love small{
-      display:block;
-      font-weight:600;
-      font-size:clamp(14px, 3vw, 18px);
-      opacity:.85;
-      margin-top:.35rem;
+    .love .heart{
+      color:#ff2d55; /* roșu */
+      filter: drop-shadow(0 8px 18px rgba(255,45,85,.28));
     }
+
     .show .love{ opacity:1; transform: scale(1); }
     .hideHint .hint{ opacity:0; }
+
+    /* Password overlay */
+    .gate{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+    .panel{
+      width:min(420px, 86vw);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(20,27,36,.75);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+      border-radius: 16px;
+      padding: 18px 16px 14px;
+      text-align:center;
+    }
+    .panel h1{
+      margin: 2px 0 6px;
+      font-size: clamp(18px, 3.6vw, 22px);
+      letter-spacing: .2px;
+    }
+    .panel p{
+      margin: 0 0 12px;
+      opacity: .85;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      align-items:center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    input[type="password"]{
+      width:min(240px, 65vw);
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.25);
+      color: var(--fg);
+      outline: none;
+      font-size: 18px;
+      letter-spacing: .25em;
+      text-align: center;
+    }
+    button{
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,60,120,.18);
+      color: var(--fg);
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover{ background: rgba(255,60,120,.26); }
+    .err{
+      margin-top: 10px;
+      font-size: 13px;
+      color: rgba(255,180,200,.95);
+      min-height: 18px;
+      opacity: 0;
+      transition: opacity .2s ease;
+    }
+    .err.show{ opacity: 1; }
+    .gate.hidden{ display:none; }
   </style>
 </head>
 <body>
   <div class="wrap" id="wrap" aria-label="inimă">
     <canvas id="c"></canvas>
+
+    <!-- Mesaj după deblocare -->
     <div class="love" id="love">
-      Te iubesc
-      <small>❤️</small>
+      <span>Pinguinul meu</span>
+      <span class="heart">❤️</span>
     </div>
+
     <div class="hint" id="hint">Apasă oriunde ca să apară surpriza ❤️</div>
+
+    <!-- Password Gate -->
+    <div class="gate" id="gate">
+      <div class="panel">
+        <h1>Acces privat ❤️</h1>
+        <p>Introdu parola (6 cifre) ca să vezi surpriza.</p>
+        <div class="row">
+          <input id="pw" type="password" inputmode="numeric" maxlength="6"
+                 placeholder="••••••" autocomplete="off" />
+          <button id="go" type="button">Deschide</button>
+        </div>
+        <div class="err" id="err">Parolă greșită. Mai încearcă.</div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -69,6 +167,45 @@
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
     const hint = document.getElementById('hint');
+
+    const PASS = "300824"; 
+
+    const gate = document.getElementById('gate');
+    const pw = document.getElementById('pw');
+    const go = document.getElementById('go');
+    const err = document.getElementById('err');
+
+    // Permite doar cifre, max 6
+    pw.addEventListener('input', () => {
+      pw.value = pw.value.replace(/\D/g, '').slice(0, 6);
+      if (err.classList.contains('show')) err.classList.remove('show');
+    });
+
+    function unlock(){
+      if (pw.value.length !== 6) {
+        err.textContent = "Parola trebuie să aibă exact 6 cifre.";
+        err.classList.add('show');
+        pw.focus();
+        return;
+      }
+      if (pw.value === PASS){
+        gate.classList.add('hidden');
+        err.classList.remove('show');
+        err.textContent = "Parolă greșită. Mai încearcă.";
+        wrap.classList.remove('show');
+        animateHeart(); // pornește surpriza imediat după deblocare
+      } else {
+        err.textContent = "Parolă greșită. Mai încearcă.";
+        err.classList.add('show');
+        pw.focus();
+        pw.select();
+      }
+    }
+
+    go.addEventListener('click', unlock);
+    pw.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') unlock();
+    });
 
     function resize() {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -81,7 +218,6 @@
 
     function drawBackgroundGlow(w, h){
       ctx.clearRect(0,0,w,h);
-      // glow discret în spate
       const g = ctx.createRadialGradient(w*0.5, h*0.42, 10, w*0.5, h*0.42, Math.min(w,h)*0.55);
       g.addColorStop(0, 'rgba(255,60,120,0.22)');
       g.addColorStop(0.6, 'rgba(255,60,120,0.05)');
@@ -90,9 +226,6 @@
       ctx.fillRect(0,0,w,h);
     }
 
-    // Parametric heart curve (classic)
-    // x = 16 sin^3 t
-    // y = 13 cos t - 5 cos 2t - 2 cos 3t - cos 4t
     function heartPoint(t){
       const x = 16 * Math.pow(Math.sin(t), 3);
       const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
@@ -100,22 +233,18 @@
     }
 
     let anim = null;
-    let started = false;
 
     function animateHeart(){
       if (anim) cancelAnimationFrame(anim);
-      started = true;
 
       wrap.classList.add('hideHint');
       const rect = canvas.getBoundingClientRect();
       const w = rect.width, h = rect.height;
 
-      // scale + center
-      const scale = Math.min(w, h) * 0.027;  // tuning
+      const scale = Math.min(w, h) * 0.027;
       const cx = w * 0.5;
       const cy = h * 0.52;
 
-      // style
       ctx.lineWidth = Math.max(3, Math.min(w,h) * 0.008);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -126,31 +255,27 @@
       strokeGrad.addColorStop(1, 'rgba(255,140,180,1)');
       ctx.strokeStyle = strokeGrad;
 
-      // animation params
-      const total = 520;       // steps
-      const duration = 1200;   // ms
+      const total = 520;
+      const duration = 1200;
       const t0 = performance.now();
 
       function frame(now){
         const p = Math.min(1, (now - t0) / duration);
         const steps = Math.floor(p * total);
 
-        // redraw base
         drawBackgroundGlow(w,h);
 
-        // draw path gradually
         ctx.beginPath();
         for (let i=0; i<=steps; i++){
           const t = (i/total) * Math.PI * 2;
           const pt = heartPoint(t);
           const x = cx + pt.x * scale;
-          const y = cy - pt.y * scale; // invert y
+          const y = cy - pt.y * scale;
           if (i===0) ctx.moveTo(x,y);
           else ctx.lineTo(x,y);
         }
         ctx.stroke();
 
-        // soft inner glow once progressing
         if (p > 0.25){
           ctx.save();
           ctx.globalAlpha = Math.min(0.18, (p-0.25)*0.3);
@@ -173,21 +298,25 @@
         if (p < 1){
           anim = requestAnimationFrame(frame);
         } else {
-          wrap.classList.add('show');
+          wrap.classList.add('show'); // aici apare „Pinguinul meu ❤️”
         }
       }
 
       anim = requestAnimationFrame(frame);
     }
 
+    // Click pe wrap: doar după deblocare
     wrap.addEventListener('click', () => {
-      // la click, re-pornește animația
+      if (!gate.classList.contains('hidden')) return;
       wrap.classList.remove('show');
       animateHeart();
     });
 
     window.addEventListener('resize', resize);
     resize();
+
+    // focus la încărcare
+    setTimeout(() => pw.focus(), 150);
   </script>
 </body>
 </html>
